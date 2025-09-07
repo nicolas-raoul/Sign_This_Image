@@ -46,6 +46,7 @@ fun ImageSigningScreen(
     var currentPath by remember { mutableStateOf(listOf<Offset>()) }
     var isDrawing by remember { mutableStateOf(false) }
     var backgroundBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var canvasSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
     
     // Load background image
     LaunchedEffect(imageUri) {
@@ -118,6 +119,9 @@ fun ImageSigningScreen(
                     )
                 }
         ) {
+            // Update canvas size
+            canvasSize = size
+            
             // Draw completed paths
             paths.forEach { drawPath ->
                 if (drawPath.points.size > 1) {
@@ -166,7 +170,7 @@ fun ImageSigningScreen(
                 val bitmap = createCompositeBitmap(
                     backgroundBitmap = backgroundBitmap,
                     paths = paths,
-                    canvasSize = size
+                    canvasSize = canvasSize
                 )
                 onSave(bitmap)
             },
