@@ -1,9 +1,12 @@
 package io.github.nicolasraoul.signthisimage
 
+import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
+import android.provider.MediaStore
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -24,17 +27,54 @@ object FileSaver {
     ): File? {
         return try {
             val fileName = generateFileName(originalFileName)
-            val file = getOutputFile(fileName)
             
-            FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            // For Android 10+ (API 29+), use MediaStore for better compatibility
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                saveToMediaStore(context, bitmap, fileName)
+            } else {
+                saveToDCIM(bitmap, fileName)
             }
-            
-            file
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             e.printStackTrace()
             null
         }
+    }
+    
+    private fun saveToMediaStore(context: Context, bitmap: Bitmap, fileName: String): File? {
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DCIM + "/Camera")
+        }
+        
+        val resolver = context.contentResolver
+        val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+        
+        return uri?.let {
+            resolver.openOutputStream(it)?.use { outputStream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+            }
+            // Return a file reference for UI purposes
+            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "Camera/$fileName")
+        }
+    }
+    
+    private fun saveToDCIM(bitmap: Bitmap, fileName: String): File {
+        val dcimDir = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
+            "Camera"
+        )
+        
+        // Create directory if it doesn't exist
+        if (!dcimDir.exists()) {
+            dcimDir.mkdirs()
+        }
+        
+        val file = File(dcimDir, fileName)
+        FileOutputStream(file).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        }
+        return file
     }
     
     private fun generateFileName(originalFileName: String?): String {
@@ -48,21 +88,6 @@ object FileSaver {
                 .format(Date())
             "signed_image_${timestamp}.png"
         }
-    }
-    
-    private fun getOutputFile(fileName: String): File {
-        // Try to save to DCIM/Camera folder as per README spec
-        val dcimDir = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
-            "Camera"
-        )
-        
-        // Create directory if it doesn't exist
-        if (!dcimDir.exists()) {
-            dcimDir.mkdirs()
-        }
-        
-        return File(dcimDir, fileName)
     }
     
     /**
@@ -79,7 +104,8 @@ object FileSaver {
                 } else null
             }
         } catch (e: Exception) {
-            null
+            // If we can't get the name from URI, try to extract from path
+            uri.path?.substringAfterLast("/")
         }
     }
 }

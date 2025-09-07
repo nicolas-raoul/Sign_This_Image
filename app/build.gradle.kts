@@ -53,7 +53,6 @@ dependencies {
     // Additional dependencies for image handling and drawing
     implementation("androidx.activity:activity-compose:1.8.0")
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
-    implementation("io.coil-kt:coil-compose:2.4.0")
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -10,7 +10,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -37,6 +39,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignThisImageApp(
     initialImageUri: Uri? = null,
@@ -46,7 +49,29 @@ fun SignThisImageApp(
     var currentImageUri by remember { mutableStateOf(initialImageUri) }
     var showSigningScreen by remember { mutableStateOf(initialImageUri != null) }
     
-    Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            if (showSigningScreen) {
+                TopAppBar(
+                    title = { Text("Sign This Image") },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                showSigningScreen = false
+                                currentImageUri = null
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Back to image picker"
+                            )
+                        }
+                    }
+                )
+            }
+        }
+    ) { innerPadding ->
         if (showSigningScreen && currentImageUri != null) {
             ImageSigningScreen(
                 imageUri = currentImageUri,

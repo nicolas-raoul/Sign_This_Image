@@ -1,10 +1,13 @@
 package io.github.nicolasraoul.signthisimage
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.net.Uri
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -16,8 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -41,19 +45,48 @@ fun ImageSigningScreen(
     var paths by remember { mutableStateOf(listOf<DrawPath>()) }
     var currentPath by remember { mutableStateOf(listOf<Offset>()) }
     var isDrawing by remember { mutableStateOf(false) }
+    var backgroundBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    
+    // Load background image
+    LaunchedEffect(imageUri) {
+        imageUri?.let { uri ->
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    backgroundBitmap = BitmapFactory.decodeStream(inputStream)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
     
     // Default drawing properties
     val strokeColor = Color.Black
     val strokeWidth = 5.dp.value * density.density
     
     Box(modifier = modifier.fillMaxSize()) {
-        // Background - for now just a light gray background
-        // In a full implementation, this would display the actual image
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.LightGray)
-        )
+        // Background image or placeholder
+        if (backgroundBitmap != null) {
+            Image(
+                bitmap = backgroundBitmap!!.asImageBitmap(),
+                contentDescription = "Background image to sign",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.LightGray),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (imageUri != null) "Loading image..." else "No image selected",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.Gray
+                )
+            }
+        }
         
         // Drawing canvas overlay
         Canvas(
@@ -114,11 +147,27 @@ fun ImageSigningScreen(
             }
         }
         
-        // Floating Action Button for saving
+        // Clear button (optional - not in original spec but useful)
+        if (paths.isNotEmpty()) {
+            FloatingActionButton(
+                onClick = { paths = emptyList() },
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(16.dp),
+                containerColor = MaterialTheme.colorScheme.secondary
+            ) {
+                Text("Clear", color = MaterialTheme.colorScheme.onSecondary)
+            }
+        }
+        
+        // Save Floating Action Button
         FloatingActionButton(
             onClick = {
-                // Create composite bitmap and save
-                val bitmap = createCompositeBitmap(size, paths)
+                val bitmap = createCompositeBitmap(
+                    backgroundBitmap = backgroundBitmap,
+                    paths = paths,
+                    canvasSize = size
+                )
                 onSave(bitmap)
             },
             modifier = Modifier
@@ -133,20 +182,28 @@ fun ImageSigningScreen(
     }
 }
 
-// Simplified bitmap creation function
+// Enhanced bitmap creation with proper background image composition
 private fun createCompositeBitmap(
-    size: androidx.compose.ui.geometry.Size,
-    paths: List<DrawPath>
+    backgroundBitmap: Bitmap?,
+    paths: List<DrawPath>,
+    canvasSize: androidx.compose.ui.geometry.Size
 ): Bitmap {
-    val bitmap = Bitmap.createBitmap(
-        800, // Default size for now
-        600,
-        Bitmap.Config.ARGB_8888
-    )
-    val canvas = Canvas(bitmap)
+    val width = backgroundBitmap?.width ?: 800
+    val height = backgroundBitmap?.height ?: 600
     
-    // Fill with white background
-    canvas.drawColor(android.graphics.Color.WHITE)
+    val compositeBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(compositeBitmap)
+    
+    // Draw background
+    if (backgroundBitmap != null) {
+        canvas.drawBitmap(backgroundBitmap, 0f, 0f, null)
+    } else {
+        canvas.drawColor(android.graphics.Color.WHITE)
+    }
+    
+    // Calculate scaling factors if canvas size is different from bitmap size
+    val scaleX = width.toFloat() / canvasSize.width
+    val scaleY = height.toFloat() / canvasSize.height
     
     val paint = Paint().apply {
         color = android.graphics.Color.BLACK
@@ -157,20 +214,20 @@ private fun createCompositeBitmap(
         isAntiAlias = true
     }
     
-    // Draw paths on canvas
+    // Draw paths on canvas with proper scaling
     paths.forEach { drawPath ->
         if (drawPath.points.size > 1) {
             for (i in 0 until drawPath.points.size - 1) {
                 canvas.drawLine(
-                    drawPath.points[i].x,
-                    drawPath.points[i].y,
-                    drawPath.points[i + 1].x,
-                    drawPath.points[i + 1].y,
+                    drawPath.points[i].x * scaleX,
+                    drawPath.points[i].y * scaleY,
+                    drawPath.points[i + 1].x * scaleX,
+                    drawPath.points[i + 1].y * scaleY,
                     paint
                 )
             }
         }
     }
     
-    return bitmap
+    return compositeBitmap
 }
