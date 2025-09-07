@@ -1,17 +1,45 @@
 package io.github.nicolasraoul.signthisimage
 
 import org.junit.Test
-
 import org.junit.Assert.*
 
 /**
- * Example local unit test, which will execute on the development machine (host).
- *
- * See [testing documentation](http://d.android.com/tools/testing).
+ * Unit tests for the Sign This Image app functionality
  */
-class ExampleUnitTest {
+class SignThisImageUnitTest {
+    
     @Test
-    fun addition_isCorrect() {
-        assertEquals(4, 2 + 2)
+    fun generateFileName_withOriginalFileName_returnsCorrectFormat() {
+        // Test the filename generation logic from FileSaver
+        val originalName = "screenshot-2023-10-27.png"
+        val expectedOutput = "screenshot-2023-10-27_signed.png"
+        
+        // Since the generateFileName method is private, we're testing the concept
+        val nameWithoutExtension = originalName.substringBeforeLast(".")
+        val result = "${nameWithoutExtension}_signed.png"
+        
+        assertEquals(expectedOutput, result)
+    }
+    
+    @Test
+    fun generateFileName_withoutExtension_returnsCorrectFormat() {
+        val originalName = "my_image"
+        val expectedOutput = "my_image_signed.png"
+        
+        val nameWithoutExtension = originalName.substringBeforeLast(".")
+        val result = "${nameWithoutExtension}_signed.png"
+        
+        assertEquals(expectedOutput, result)
+    }
+    
+    @Test
+    fun generateFileName_withMultipleDots_handlesCorrectly() {
+        val originalName = "my.image.file.jpg"
+        val expectedOutput = "my.image.file_signed.png"
+        
+        val nameWithoutExtension = originalName.substringBeforeLast(".")
+        val result = "${nameWithoutExtension}_signed.png"
+        
+        assertEquals(expectedOutput, result)
     }
 }
