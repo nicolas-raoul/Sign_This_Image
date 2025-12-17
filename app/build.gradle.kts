@@ -10,10 +10,10 @@ android {
 
     defaultConfig {
         applicationId = "io.github.nicolasraoul.signthisimage"
-        minSdk = 36
+        minSdk = 34 // When 36, app was rejected "Problems installing: Your app does not install for users"
         targetSdk = 36
-        versionCode = 2
-        versionName = "2"
+        versionCode = 4
+        versionName = "4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
