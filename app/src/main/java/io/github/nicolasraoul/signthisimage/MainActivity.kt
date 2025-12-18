@@ -16,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.saveable.rememberSaveable
 import io.github.nicolasraoul.signthisimage.ui.theme.SignThisImageTheme
 
 class MainActivity : ComponentActivity() {
@@ -46,8 +47,8 @@ fun SignThisImageApp(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var currentImageUri by remember { mutableStateOf(initialImageUri) }
-    var showSigningScreen by remember { mutableStateOf(initialImageUri != null) }
+    var currentImageUri by rememberSaveable { mutableStateOf(initialImageUri) }
+    var showSigningScreen by rememberSaveable { mutableStateOf(initialImageUri != null) }
     
     Scaffold(
         modifier = modifier.fillMaxSize(),
