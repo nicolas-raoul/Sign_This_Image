@@ -83,35 +83,8 @@ fun ImageSigningScreen(
     var canvasSize by remember { mutableStateOf(androidx.compose.ui.geometry.Size.Zero) }
     
     // Calculate the actual image bounds within the canvas to correctly normalize/denormalize coordinates
-    fun calculateImageBounds(viewSize: androidx.compose.ui.geometry.Size, bitmap: Bitmap?): androidx.compose.ui.geometry.Rect {
-        if (bitmap == null || viewSize.width == 0f || viewSize.height == 0f) {
-            return androidx.compose.ui.geometry.Rect.Zero
-        }
+    // Moved to top-level private function
 
-        val viewAspectRatio = viewSize.width / viewSize.height
-        val bitmapAspectRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
-
-        val imageWidth: Float
-        val imageHeight: Float
-        val offsetX: Float
-        val offsetY: Float
-
-        if (viewAspectRatio > bitmapAspectRatio) {
-            // View is wider than image (fit by height)
-            imageHeight = viewSize.height
-            imageWidth = imageHeight * bitmapAspectRatio
-            offsetY = 0f
-            offsetX = (viewSize.width - imageWidth) / 2f
-        } else {
-            // View is taller than image (fit by width)
-            imageWidth = viewSize.width
-            imageHeight = imageWidth / bitmapAspectRatio
-            offsetX = 0f
-            offsetY = (viewSize.height - imageHeight) / 2f
-        }
-
-        return androidx.compose.ui.geometry.Rect(offsetX, offsetY, offsetX + imageWidth, offsetY + imageHeight)
-    }
 
     
     // Load background image
@@ -294,15 +267,21 @@ private fun createCompositeBitmap(
     
     val paint = Paint().apply {
         color = android.graphics.Color.BLACK
-        strokeWidth = 5f
+        // Start strokeWidth will be overwritten
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
         isAntiAlias = true
     }
     
+    val imageBounds = calculateImageBounds(canvasSize, backgroundBitmap)
+    // Avoid division by zero
+    val scale = if (imageBounds.width > 0) width.toFloat() / imageBounds.width else 1f
+    
     // Draw paths on canvas using normalized coordinates
     paths.forEach { drawPath ->
+        paint.strokeWidth = drawPath.strokeWidth * scale
+        
         if (drawPath.points.size > 1) {
             for (i in 0 until drawPath.points.size - 1) {
                 // Denormalize to bitmap coordinates
@@ -323,4 +302,35 @@ private fun createCompositeBitmap(
     }
     
     return compositeBitmap
+}
+
+// Calculate the actual image bounds within the canvas to correctly normalize/denormalize coordinates
+private fun calculateImageBounds(viewSize: androidx.compose.ui.geometry.Size, bitmap: Bitmap?): androidx.compose.ui.geometry.Rect {
+    if (bitmap == null || viewSize.width == 0f || viewSize.height == 0f) {
+        return androidx.compose.ui.geometry.Rect.Zero
+    }
+
+    val viewAspectRatio = viewSize.width / viewSize.height
+    val bitmapAspectRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+
+    val imageWidth: Float
+    val imageHeight: Float
+    val offsetX: Float
+    val offsetY: Float
+
+    if (viewAspectRatio > bitmapAspectRatio) {
+        // View is wider than image (fit by height)
+        imageHeight = viewSize.height
+        imageWidth = imageHeight * bitmapAspectRatio
+        offsetY = 0f
+        offsetX = (viewSize.width - imageWidth) / 2f
+    } else {
+        // View is taller than image (fit by width)
+        imageWidth = viewSize.width
+        imageHeight = imageWidth / bitmapAspectRatio
+        offsetX = 0f
+        offsetY = (viewSize.height - imageHeight) / 2f
+    }
+
+    return androidx.compose.ui.geometry.Rect(offsetX, offsetY, offsetX + imageWidth, offsetY + imageHeight)
 }
